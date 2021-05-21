@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"time"
 )
@@ -65,7 +66,7 @@ var DefaultExecAllocatorOptions = [...]ExecAllocatorOption{
 	Flag("disable-default-apps", true),
 	Flag("disable-dev-shm-usage", true),
 	Flag("disable-extensions", true),
-	Flag("disable-features", "site-per-process,TranslateUI,BlinkGenPropertyTrees"),
+	Flag("disable-features", "site-per-process,Translate,BlinkGenPropertyTrees"),
 	Flag("disable-hang-monitor", true),
 	Flag("disable-ipc-flooding-protection", true),
 	Flag("disable-popup-blocking", true),
@@ -215,7 +216,7 @@ func (a *ExecAllocator) Allocate(ctx context.Context, opts ...BrowserOption) (*B
 
 	// Chrome will sometimes fail to print the websocket, or run for a long
 	// time, without properly exiting. To avoid blocking forever in those
-	// cases, give up after ten seconds.
+	// cases, give up after twenty seconds.
 	const wsURLReadTimeout = 20 * time.Second
 
 	var wsURL string
@@ -325,32 +326,43 @@ func ExecPath(path string) ExecAllocatorOption {
 }
 
 // findExecPath tries to find the Chrome browser somewhere in the current
-// system. It performs a rather agressive search, which is the same in all
-// systems. That may make it a bit slow, but it will only be run when creating a
-// new ExecAllocator.
+// system. It finds in different locations on different OS systems.
+// It could perform a rather aggressive search. That may make it a bit slow,
+// but it will only be run when creating a new ExecAllocator.
 func findExecPath() string {
-	for _, path := range [...]string{
-		// Unix-like
-		"headless_shell",
-		"headless-shell",
-		"chromium",
-		"chromium-browser",
-		"google-chrome",
-		"google-chrome-stable",
-		"google-chrome-beta",
-		"google-chrome-unstable",
-		"/usr/bin/google-chrome",
+	var locations []string
+	switch runtime.GOOS {
+	case "darwin":
+		locations = []string{
+			// Mac
+			"/Applications/Chromium.app/Contents/MacOS/Chromium",
+			"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+		}
+	case "windows":
+		locations = []string{
+			// Windows
+			"chrome",
+			"chrome.exe", // in case PATHEXT is misconfigured
+			`C:\Program Files (x86)\Google\Chrome\Application\chrome.exe`,
+			`C:\Program Files\Google\Chrome\Application\chrome.exe`,
+			filepath.Join(os.Getenv("USERPROFILE"), `AppData\Local\Google\Chrome\Application\chrome.exe`),
+		}
+	default:
+		locations = []string{
+			// Unix-like
+			"headless_shell",
+			"headless-shell",
+			"chromium",
+			"chromium-browser",
+			"google-chrome",
+			"google-chrome-stable",
+			"google-chrome-beta",
+			"google-chrome-unstable",
+			"/usr/bin/google-chrome",
+		}
+	}
 
-		// Windows
-		"chrome",
-		"chrome.exe", // in case PATHEXT is misconfigured
-		`C:\Program Files (x86)\Google\Chrome\Application\chrome.exe`,
-		`C:\Program Files\Google\Chrome\Application\chrome.exe`,
-		filepath.Join(os.Getenv("USERPROFILE"), `AppData\Local\Google\Chrome\Application\chrome.exe`),
-
-		// Mac
-		"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-	} {
+	for _, path := range locations {
 		found, err := exec.LookPath(path)
 		if err == nil {
 			return found

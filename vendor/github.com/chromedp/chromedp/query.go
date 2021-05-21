@@ -165,30 +165,17 @@ func (s *Selector) Do(ctx context.Context) error {
 		case <-time.After(5 * time.Millisecond):
 		}
 
-		t.frameMu.RLock()
-		frame := t.frames[t.cur]
-		execCtx := t.execContexts[t.cur]
-
-		if frame == nil || execCtx == 0 {
-			// the frame hasn't loaded yet.
-			t.frameMu.RUnlock()
+		frame, root, execCtx, ok := t.ensureFrame()
+		if !ok {
 			continue
 		}
 
 		fromNode := s.fromNode
 		if fromNode == nil {
-			t.frameMu.RUnlock()
-
-			frame.RLock()
-			fromNode = frame.Root
-			frame.RUnlock()
-
-			if fromNode == nil {
-				// not root node yet?
-				continue
-			}
+			fromNode = root
 		} else {
 			frameID := t.enclosingFrame(fromNode)
+			t.frameMu.RLock()
 			execCtx = t.execContexts[frameID]
 			t.frameMu.RUnlock()
 
@@ -947,7 +934,7 @@ func JavascriptAttribute(sel interface{}, name string, res interface{}, opts ...
 		if err := evalInCtx(ctx, execCtx,
 			snippet(attributeJS, cashX(true), sel, nodes[0], name), res,
 		); err != nil {
-			return fmt.Errorf("could not retrieve attribute %q: %v", name, err)
+			return fmt.Errorf("could not retrieve attribute %q: %w", name, err)
 		}
 		return nil
 	}, opts...)
