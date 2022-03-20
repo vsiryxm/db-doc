@@ -14,7 +14,7 @@ import (
 func createOnlineDoc(docPath string, dbName string, tables []model.Table) {
 	var sidebar []string
 	var readme []string
-	sidebar = append(sidebar, "* [数据库文档](README.md)")
+	sidebar = append(sidebar, "* [ "+dbName+" 数据库文档](README.md)")
 	for i := range tables {
 		readme = append(readme, fmt.Sprintf("# %s数据库文档", dbName))
 		readme = append(readme, fmt.Sprintf("- [%s](%s.md)", tables[i].TableComment, tables[i].TableName))
@@ -33,6 +33,7 @@ func createOnlineDoc(docPath string, dbName string, tables []model.Table) {
 		util.WriteToFile(path.Join(docPath, tables[i].TableName+".md"), tableStr)
 	}
 	// create readme.md
+
 	readmeStr := strings.Join(sidebar, "\r\n")
 	util.WriteToFile(path.Join(docPath, "README.md"), readmeStr)
 	// create _sidebar.md
