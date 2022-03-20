@@ -1,0 +1,10 @@
+app:
+  name: "DB-DOC" 
+  doctype: 1 # 1. online 3. offline
+database:
+  dbtype: 1 #1. mysql  2. oracle 3. mssql
+  user : root
+  password : 123456
+  host : 127.0.0.1
+  port : 3306
+  dbname : db_cotc
